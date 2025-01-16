@@ -1,3 +1,4 @@
+import os
 import random
 from telegram import Update
 from telegram.ext import (
@@ -9,8 +10,8 @@ from telegram.ext import (
     ConversationHandler,
 )
 
-# Токен вашего бота
-TOKEN = "Ваш токен"
+# Токен берется из переменных окружения
+TOKEN = os.getenv("TOKEN")
 
 # Списки тональностей
 MAJOR_TONALITIES = [
