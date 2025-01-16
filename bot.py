@@ -50,12 +50,15 @@ MINOR_TONALITIES = [
     "d-moll",
 ]
 
+# Общий список тональностей
+ALL_TONALITIES = MAJOR_TONALITIES + MINOR_TONALITIES
+
 # Списки ступеней
 MAJOR_STEPS = ["II", "III", "IV", "V", "VI"]
 MINOR_STEPS = ["III", "IV", "V", "VI", "VII"]
 
 # Состояния для ConversationHandler
-SELECT_STEP, GET_MODULATION = range(2)
+SELECT_STEP, GET_MODULATION, SELECT_TONALITY, GET_TONALITY_MODULATION = range(4)
 
 
 # Функция для генерации случайной модуляции
@@ -64,10 +67,12 @@ def generate_modulation(step=None):
         # Генерация модуляции для конкретной ступени
         result = []
         if step in MAJOR_STEPS:
+            # Используем только мажорные тональности для мажорных ступеней
             result.extend(
                 [f"{tonality}, {step} ступень" for tonality in MAJOR_TONALITIES]
             )
-        if step in MINOR_STEPS:
+        elif step in MINOR_STEPS:
+            # Используем только минорные тональности для минорных ступеней
             result.extend(
                 [f"{tonality}, {step} ступень" for tonality in MINOR_TONALITIES]
             )
@@ -84,12 +89,24 @@ def generate_modulation(step=None):
         return f"{tonality}, {step} ступень"
 
 
+# Функция для генерации случайной ступени для выбранной тональности
+def generate_step_for_tonality(tonality):
+    if tonality in MAJOR_TONALITIES:
+        step = random.choice(MAJOR_STEPS)
+    elif tonality in MINOR_TONALITIES:
+        step = random.choice(MINOR_STEPS)
+    else:
+        return None
+    return f"{tonality}, {step} ступень"
+
+
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Привет! Я бот для генерации случайных музыкальных модуляций.\n"
         "Используй команду /modulate, чтобы получить случайную тональность и ступень.\n"
-        "Используй команду /select_step, чтобы выбрать ступень и получать модуляции для неё."
+        "Используй команду /select_step, чтобы выбрать ступень и получать модуляции для неё.\n"
+        "Используй команду /select_tonality, чтобы выбрать тональность и получать случайные ступени для неё."
     )
 
 
@@ -143,10 +160,54 @@ async def next_modulation(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 
+# Обработчик команды /select_tonality
+async def select_tonality(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Введите тональность (например, 'C-dur' или 'a-moll'), чтобы получать случайные ступени для неё.\n"
+        "Используйте /cancel, чтобы выйти из режима выбора тональности."
+    )
+    return SELECT_TONALITY
+
+
+# Обработчик ввода тональности
+async def handle_tonality(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tonality = update.message.text
+    if tonality in ALL_TONALITIES:
+        context.user_data["tonality"] = tonality
+        modulation = generate_step_for_tonality(tonality)
+        await update.message.reply_text(modulation)
+        await update.message.reply_text(
+            "Используйте /next_tonality, чтобы получить ещё одну ступень для этой тональности.\n"
+            "Используйте /cancel, чтобы выйти из режима выбора тональности."
+        )
+        return GET_TONALITY_MODULATION
+    else:
+        await update.message.reply_text("Некорректная тональность. Попробуйте ещё раз.")
+        return SELECT_TONALITY
+
+
+# Обработчик команды /next_tonality
+async def next_tonality_modulation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tonality = context.user_data.get("tonality")
+    if tonality:
+        modulation = generate_step_for_tonality(tonality)
+        await update.message.reply_text(modulation)
+        await update.message.reply_text(
+            "Используйте /next_tonality, чтобы получить ещё одну ступень для этой тональности.\n"
+            "Используйте /cancel, чтобы выйти из режима выбора тональности."
+        )
+        return GET_TONALITY_MODULATION
+    else:
+        await update.message.reply_text(
+            "Сначала выберите тональность с помощью /select_tonality."
+        )
+        return ConversationHandler.END
+
+
 # Обработчик команды /cancel
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Режим выбора ступени отменён. Возврат к абсолютному рандому."
+        "Режим выбора ступени или тональности отменён. Возврат к абсолютному рандому."
     )
     return ConversationHandler.END
 
@@ -160,7 +221,7 @@ def main():
     application.add_handler(CommandHandler("modulate", modulate))
 
     # ConversationHandler для режима выбора ступени
-    conv_handler = ConversationHandler(
+    conv_handler_step = ConversationHandler(
         entry_points=[CommandHandler("select_step", select_step)],
         states={
             SELECT_STEP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_step)],
@@ -171,7 +232,23 @@ def main():
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
-    application.add_handler(conv_handler)
+    application.add_handler(conv_handler_step)
+
+    # ConversationHandler для режима выбора тональности
+    conv_handler_tonality = ConversationHandler(
+        entry_points=[CommandHandler("select_tonality", select_tonality)],
+        states={
+            SELECT_TONALITY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_tonality)
+            ],
+            GET_TONALITY_MODULATION: [
+                CommandHandler("next_tonality", next_tonality_modulation),
+                CommandHandler("cancel", cancel),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(conv_handler_tonality)
 
     # Запускаем бота
     application.run_polling()
