@@ -319,10 +319,7 @@ def main():
 
 
 if __name__ == "__main__":
-    import time
-
     # Проверка наличия токена
-    time.sleep(1)
     if not TOKEN:
         logger.error(
             "Токен не задан. Убедитесь, что переменная окружения TOKEN установлена."
