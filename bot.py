@@ -20,13 +20,6 @@ logger = logging.getLogger(__name__)
 # Токен берется из переменных окружения
 TOKEN = os.getenv("TOKEN")
 
-# Проверка наличия токена
-if not TOKEN:
-    logger.error(
-        "Токен не задан. Убедитесь, что переменная окружения TOKEN установлена."
-    )
-    exit(1)
-
 # Списки тональностей
 MAJOR_TONALITIES = [
     "C-dur",
@@ -79,17 +72,16 @@ SELECT_STEP, GET_MODULATION, SELECT_TONALITY, GET_TONALITY_MODULATION = range(4)
 def generate_modulation(step=None):
     try:
         if step:
-            # Генерация модуляции для конкретной ступени
             result = []
-            if step in MAJOR_STEPS:
-                # Используем только мажорные тональности для мажорных ступеней
-                result.extend(
-                    [f"{tonality}, {step} ступень" for tonality in MAJOR_TONALITIES]
-                )
-            elif step in MINOR_STEPS:
-                # Используем только минорные тональности для минорных ступеней
+            # Проверяем сначала минорные ступени
+            if step in MINOR_STEPS:
                 result.extend(
                     [f"{tonality}, {step} ступень" for tonality in MINOR_TONALITIES]
+                )
+            # Проверяем мажорные ступени
+            if step in MAJOR_STEPS:
+                result.extend(
+                    [f"{tonality}, {step} ступень" for tonality in MAJOR_TONALITIES]
                 )
             return random.choice(result) if result else None
         else:
@@ -327,4 +319,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Проверка наличия токена
+    if not TOKEN:
+        logger.error(
+            "Токен не задан. Убедитесь, что переменная окружения TOKEN установлена."
+        )
+        exit(1)
+
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"Ошибка при запуске бота: {e}")
+        exit(1)

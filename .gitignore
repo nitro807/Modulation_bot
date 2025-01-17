@@ -6,6 +6,7 @@ __pycache__/
 
 # Files
 .env
+test_bot.py
 
 # Logs and databases
 *.log
