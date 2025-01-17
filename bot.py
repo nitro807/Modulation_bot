@@ -162,9 +162,24 @@ async def handle_step_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     step = query.data.split("_")[1]
     if step in MAJOR_STEPS or step in MINOR_STEPS:
         modulation = generate_modulation(step)
+
+        # Обновляем сообщение с новыми кнопками
+        keyboard = [
+            [
+                InlineKeyboardButton(step, callback_data=f"step_{step}")
+                for step in MAJOR_STEPS
+            ],
+            [
+                InlineKeyboardButton(step, callback_data=f"step_{step}")
+                for step in MINOR_STEPS
+            ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         await query.edit_message_text(
             text=f"Модуляция для выбранной ступени {step}: {modulation}\n"
-            "Выберите ещё ступень или введите /cancel для завершения."
+            "Выберите ещё ступень или введите /cancel для завершения.",
+            reply_markup=reply_markup,
         )
     else:
         await query.edit_message_text("Некорректная ступень. Попробуйте снова.")
@@ -202,12 +217,41 @@ async def handle_tonality_callback(update: Update, context: ContextTypes.DEFAULT
     tonality = query.data.split("_")[1]
     if tonality in ALL_TONALITIES:
         modulation = generate_step_for_tonality(tonality)
+
+        # Обновляем сообщение с новыми кнопками
+        keyboard = [
+            [
+                InlineKeyboardButton(tonality, callback_data=f"tonality_{tonality}")
+                for tonality in MAJOR_TONALITIES[:7]
+            ],
+            [
+                InlineKeyboardButton(tonality, callback_data=f"tonality_{tonality}")
+                for tonality in MINOR_TONALITIES[:7]
+            ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         await query.edit_message_text(
             text=f"Случайная ступень для выбранной тональности {tonality}: {modulation}\n"
-            "Выберите ещё тональность или введите /cancel для завершения."
+            "Выберите ещё тональность или введите /cancel для завершения.",
+            reply_markup=reply_markup,
         )
     else:
         await query.edit_message_text("Некорректная тональность. Попробуйте снова.")
+
+
+# Обработчик команды /cancel
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await update.message.reply_text(
+            "Отмена. Возврат к начальному меню.\n"
+            "Используй команду /modulate, чтобы получить случайную тональность и ступень.\n"
+            "Используй команду /select_step, чтобы выбрать ступень и получать модуляции для неё.\n"
+            "Используй команду /select_tonality, чтобы выбрать тональность и получать случайные ступени для неё."
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в команде /cancel: {e}")
+        await update.message.reply_text("Произошла ошибка. Попробуйте ещё раз.")
 
 
 # Регистрация новых обработчиков
@@ -218,6 +262,7 @@ def main():
         # Обработчики команд
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("modulate", modulate))
+        application.add_handler(CommandHandler("cancel", cancel))
 
         # Inline-кнопки
         application.add_handler(
